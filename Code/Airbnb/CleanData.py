@@ -42,7 +42,6 @@ def clean_data(df, return_large_df=False):
 
 	select = select.drop(['accommodates', 'beds'], axis=1)
 
-
 	if return_large_df:
 		return df, select
 	else:
@@ -98,5 +97,5 @@ if __name__ == '__main__':
 
 	X = remove_outliers(X)
 
-	X.to_csv('../../Data/Airbnb/cleaned_data.csv')
+	X.to_csv('../../Data/Airbnb/cleaned_data2.csv')
 
