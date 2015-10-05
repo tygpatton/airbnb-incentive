@@ -11,7 +11,7 @@ def compute_comps_median(df, kdtree, num_comps=10, feature='bedrooms'):
 	'''
 	gps = df[['latitude', 'longitude']]
 
-	# finds the 100 closest properties
+	# line 15 finds the 100 closest properties
 	#dist, ind = kdtree.query(gps, k=100)
 	
 	# finds all properties within 1 mile radius
@@ -70,8 +70,6 @@ def test_num_comps(row, threshold, median_dict, feat='bedrooms'):
 	'''
 	if row.comps_found < threshold:
 		row.comp_median_price = median_dict[row[feat]]
-	
-	if row.comps_found < threshold:
 		row.comp_mean_price = median_dict[row[feat]]	
 	return row
 
@@ -144,17 +142,7 @@ if __name__ == '__main__':
 	df = get_bed_dummies(df)
 	with open('../../Models/Airbnb/kdtree.pkl') as f:
 		kdtree = pickle.load(f)
-	
-	features = ['accommodates', 'beds', 'acc_per_bed']
 
-	comp_amts = [10, 50, 100]
-
-	for x in features:
-		for n in comp_amts:
-			df2 = compute_comps_median(df, kdtree, num_comps=n, feature=x)
-			df2 = add_city_median(df2, comps_threshold=1)
-			df2.to_csv('../../Data/Airbnb/comp_variants/%s_%s_wo_city.csv' %\
-				(x, n), encoding='utf-8')
-			df2 = add_city_median(df2, feature=x)
-			df2.to_csv('../../Data/Airbnb/comp_variants/%s_%s_w_city.csv' %\
-				(x, n), encoding='utf-8')
+	df2 = compute_comps_median(df, kdtree, num_comps=100, feature='bedrooms')
+	df2 = add_city_median(df2, feature='bedrooms')
+	df2.to_csv('../../Data/Airbnb/featurized.csv', encoding='utf-8')
