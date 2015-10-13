@@ -2,7 +2,7 @@ import cPickle as pickle
 import pandas as pd
 import numpy as np
 
-def predict_craigslist(point, kdtree, data, model, num_comps=10):
+def find_comps_predict_one(point, kdtree, data, model, num_comps=100):
 	'''
 	INPUT: point: data point to be predicted (numpy array)
 				  last two columns should be latitude and longitude
@@ -26,22 +26,25 @@ def predict_craigslist(point, kdtree, data, model, num_comps=10):
 
 	if found_comps == 0:
 		print "No comps found for location: ", gps
-		return None
-	
+		median = None
+		mean = None
+		prediction = None
 	elif found_comps < num_comps:
 		print "Only %s comps found for location: %s" % (found_comps, gps)
 		median = np.median(comps['price'])
 		mean = np.mean(comps['price'])
-
+		no_gps = point[:-2]
+		new_point = no_gps.append(pd.DataFrame([median, mean]))
+		prediction = model.predict(new_point.T)[0]
 	else:
-		median = np.median(comps.iloc[:10]['price'])
-		mean = np.mean(comps.iloc[:10]['price'])
-	
-	no_gps = point[:-2]
-	new_point = no_gps.append(pd.DataFrame([median, mean]))
-	prediction = model.predict(new_point.T)
+		median = np.median(comps.iloc[:num_comps]['price'])
+		mean = np.mean(comps.iloc[:num_comps]['price'])
+		no_gps = point[:-2]
+		new_point = no_gps.append(pd.DataFrame([median, mean]))
+		prediction = model.predict(new_point.T)[0]
 
-	return prediction
+	return median, mean, prediction
+
 
 
 def predict_break_even(a_prediction, c_prediction, c_opx = 0.37, a_opx = 0.32):
@@ -49,6 +52,8 @@ def predict_break_even(a_prediction, c_prediction, c_opx = 0.37, a_opx = 0.32):
 	INPUT:
 	a_prediction: predicted nightly rate for a unit on airbnb
 	c_prediction: predicted monthly rent for same unit
+	c_opx: estimated operating cost for a long-term rental
+	a_opx: estimated operating cost for a short-term rental
 
 	OUTPUT:
 	int (predicted number of days to break even)
@@ -65,25 +70,30 @@ def predict_break_even(a_prediction, c_prediction, c_opx = 0.37, a_opx = 0.32):
 
 if __name__=='__main__':
 	data = pd.read_csv('../Data/Craigslist/cleaned_full2.csv')
-	grid = pd.read_csv('../Data/Craigslist/sf_grid_points.csv')
+	grid = pd.read_csv('../Data/all_resi_cl_feats.csv')
 	grid = grid.drop('Unnamed: 0', axis=1)
 	with open('../Models/Craigslist/kdtree_full2.pkl') as f:
 		kdtree = pickle.load(f)
 
 	with open('../Models/Craigslist/rf_craigslist.pkl') as f2:
-		rf = pickle.load(f2)
+		gb = pickle.load(f2)
 
 	predictions = []
+	medians = []
+	means = []
 	for i in xrange(len(grid)):
+		if i % 200 == 0:
+			print "Processing %s of %s" % (i, len(grid))
 		point = grid.iloc[i]
-		prediction = predict_craigslist(point, kdtree, data, rf)
+		median, mean, prediction = find_comps_predict_one(point, kdtree, data, gb)
 		predictions.append(prediction)
+		medians.append(median)
+		means.append(mean)
 
 	#print "length of predictions: ", len(predictions)
+	grid['comp_median_price'] = np.array(medians)
+	grid['comp_mean_price'] = np.array(means)
 	grid['predictions'] = np.array(predictions)
 
-	grid.to_csv('../Data/Craigslist/grid_w_predictions.csv', encoding='utf-8')
+	grid.to_csv('../Data/Craigslist/all_resi_predictions.csv', encoding='utf-8')
 
-
-
-	
